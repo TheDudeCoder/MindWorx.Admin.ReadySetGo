@@ -43,7 +43,8 @@ Router.register('subscriptions', async (container) => {
     async function loadData() {
         try {
             const result = await API.Expenses.lookup({});
-            const data = result.data || result.results || [];
+            const allExpenses = result.data || result.results || [];
+            const data = allExpenses.filter(e => (e.type || '').toLowerCase() === 'subscription');
 
             renderKPIs(data);
             renderCards(data);
