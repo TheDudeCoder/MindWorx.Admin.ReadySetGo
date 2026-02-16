@@ -43,7 +43,7 @@ Router.register('call-activity', async (container) => {
         try {
             const result = await API.CallLog.lookup({});
             const allData = result.data || result.results || [];
-            const data = filterByDate(allData, 'call_started_at', range);
+            const data = filterByDate(allData, 'created_on', range);
 
             renderKPIs(data);
             renderVolumeChart(data);
