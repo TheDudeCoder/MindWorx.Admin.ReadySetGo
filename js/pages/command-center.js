@@ -111,16 +111,20 @@ Router.register('command-center', async (container) => {
         try {
             // Load data from all CRUD endpoints in parallel
             const [contacts, callLogs, logs, expenses] = await Promise.all([
-                API.Contacts.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
-                API.CallLog.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
+                API.Contacts.lookup({}).catch(() => ({ data: [] })),
+                API.CallLog.lookup({}).catch(() => ({ data: [] })),
                 API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
                 API.Expenses.lookup({}).catch(() => ({ data: [] }))
             ]);
 
-            const contactList = contacts.data || contacts.results || [];
-            const callList = callLogs.data || callLogs.results || [];
+            const allContacts = contacts.data || contacts.results || [];
+            const allCalls = callLogs.data || callLogs.results || [];
             const logList = logs.data || logs.results || [];
             const expenseList = expenses.data || expenses.results || [];
+
+            // Client-side date filtering for entities that don't support server-side filtering
+            const contactList = filterByDate(allContacts, 'created_on', range);
+            const callList = filterByDate(allCalls, 'call_started_at', range);
 
             renderKPIs(contactList, callList, logList);
             renderFunnelChart(contactList);
@@ -133,6 +137,22 @@ Router.register('command-center', async (container) => {
         } catch (err) {
             console.error('Command Center load error:', err);
         }
+    }
+
+    /**
+     * Filter an array of records by a date field within a start/end range.
+     * If start or end is empty, that bound is unconstrained (i.e. "All").
+     */
+    function filterByDate(records, dateField, range) {
+        if (!range.start && !range.end) return records;
+        return records.filter(r => {
+            const val = r[dateField];
+            if (!val) return false; // exclude records without a date
+            const d = val.split('T')[0]; // compare date portion only
+            if (range.start && d < range.start) return false;
+            if (range.end && d > range.end) return false;
+            return true;
+        });
     }
 
     // ─── KPI Cards ───────────────────────────────────────────
