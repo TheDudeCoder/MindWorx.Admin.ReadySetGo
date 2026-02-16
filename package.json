@@ -1,0 +1,10 @@
+{
+    "name": "mindworx-admin-website",
+    "version": "1.0.0",
+    "description": "MindWorx Admin Dashboard — Monitor your AI automation ecosystem",
+    "private": true,
+    "scripts": {
+        "dev": "npx -y serve@latest . -l 3000 --no-clipboard",
+        "start": "npx -y serve@latest . -l 3000 --no-clipboard"
+    }
+}
