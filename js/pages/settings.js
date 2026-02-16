@@ -1,6 +1,6 @@
 /* ============================================================
    MindWorx Admin — Settings Page
-   Editable Configuration (Name/Value pairs)
+   Editable Settings (Name/Value pairs)
    ============================================================ */
 
 Router.register('settings', async (container) => {
@@ -8,7 +8,7 @@ Router.register('settings', async (container) => {
         <div class="page-header flex justify-between items-center">
             <div>
                 <h1 class="page-title">Settings</h1>
-                <p class="page-subtitle">Manage system configuration</p>
+                <p class="page-subtitle">Manage system settings</p>
             </div>
             <button class="btn btn-primary btn-sm" id="btn-refresh-settings">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -31,7 +31,7 @@ Router.register('settings', async (container) => {
 
     async function loadData() {
         try {
-            const result = await API.Configuration.lookup().catch(() => ({ data: [] }));
+            const result = await API.Settings.lookup().catch(() => ({ data: [] }));
             configData = result.data || result.results || [];
             renderTable();
         } catch (err) {
@@ -57,7 +57,7 @@ Router.register('settings', async (container) => {
             data: configData,
             searchable: true,
             pageSize: 25,
-            emptyMessage: 'No configuration found'
+            emptyMessage: 'No settings found'
         });
 
         // Attach edit handlers
@@ -82,7 +82,7 @@ Router.register('settings', async (container) => {
             ],
             data: row,
             onSave: async (result) => {
-                await API.Configuration.update({ Name: row.Name, Value: result.Value });
+                await API.Settings.update({ Name: row.Name, Value: result.Value });
                 await loadData();
             }
         });
