@@ -35,9 +35,16 @@ Router.register('financials', async (container) => {
         </div>
 
         <!-- Tab Switcher -->
-        <div class="flex gap-2" style="margin-bottom:1rem;">
+        <div class="flex gap-2 items-center" style="margin-bottom:1rem;">
             <button class="btn btn-primary btn-sm" id="tab-sales" data-tab="sales">Sales</button>
             <button class="btn btn-outline btn-sm" id="tab-expenses" data-tab="expenses">Expenses</button>
+            <button class="btn btn-primary btn-sm" id="btn-add-expense" style="display:none;margin-left:auto;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add Expense
+            </button>
         </div>
 
         <div id="fin-table"></div>
@@ -51,11 +58,13 @@ Router.register('financials', async (container) => {
 
     document.getElementById('tab-sales').addEventListener('click', () => switchTab('sales'));
     document.getElementById('tab-expenses').addEventListener('click', () => switchTab('expenses'));
+    document.getElementById('btn-add-expense').addEventListener('click', openAddExpenseModal);
 
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('tab-sales').className = tab === 'sales' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
         document.getElementById('tab-expenses').className = tab === 'expenses' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+        document.getElementById('btn-add-expense').style.display = tab === 'expenses' ? 'inline-flex' : 'none';
         renderTable();
     }
 
@@ -205,19 +214,76 @@ Router.register('financials', async (container) => {
             DataTable.render(tableEl, {
                 columns: [
                     { key: 'name', label: 'Service' },
-                    { key: 'value', label: 'Plan' },
+                    { key: 'url', label: 'URL', render: (v) => v ? `<a href="${v}" target="_blank" class="text-primary" style="text-decoration:underline;">${Utils.truncate(v, 30)}</a>` : '—' },
                     { key: 'description', label: 'Description', render: (v) => Utils.truncate(v, 40) },
                     { key: 'cost', label: 'Cost', render: (v) => Utils.formatCurrency(v) },
                     { key: 'unit', label: 'Billing' },
                     { key: 'start_date', label: 'Start', render: (v) => Utils.formatDate(v) },
-                    { key: 'expiration_date', label: 'Expires', render: (v) => Utils.formatDate(v) }
+                    { key: 'expiration_date', label: 'Expires', render: (v) => Utils.formatDate(v) },
+                    {
+                        key: '_actions', label: '', width: '80px', sortable: false,
+                        render: (_, row) => `<button class="btn btn-outline btn-sm" data-action="edit-expense" data-name="${row.name}">Edit</button>`
+                    }
                 ],
                 data: expensesData,
                 searchable: true,
                 pageSize: 15,
                 emptyMessage: 'No expenses recorded yet'
             });
+
+            // Attach edit handlers
+            tableEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-action="edit-expense"]');
+                if (btn) {
+                    const name = btn.getAttribute('data-name');
+                    const row = expensesData.find(r => r.name === name);
+                    if (row) openEditExpenseModal(row);
+                }
+            });
         }
+    }
+
+    // ---- Expense Modals ----
+
+    const expenseFields = [
+        { key: 'name', label: 'Service Name', type: 'text' },
+        { key: 'url', label: 'URL', type: 'text' },
+        { key: 'description', label: 'Description', type: 'textarea' },
+        { key: 'cost', label: 'Cost ($)', type: 'number' },
+        { key: 'unit', label: 'Billing Cycle', type: 'select', options: ['monthly', 'annual', 'one-time'] },
+        { key: 'start_date', label: 'Start Date', type: 'date' },
+        { key: 'expiration_date', label: 'Expiration Date', type: 'date' }
+    ];
+
+    function openEditExpenseModal(row) {
+        Modal.open({
+            title: `Edit: ${row.name}`,
+            fields: [
+                { key: 'name', label: 'Service Name', type: 'text', readonly: true },
+                ...expenseFields.slice(1)
+            ],
+            data: row,
+            onSave: async (result) => {
+                await API.Expenses.update({ name: row.name, ...result });
+                await loadData(dateRange);
+            },
+            onDelete: async () => {
+                await API.Expenses.delete({ name: row.name });
+                await loadData(dateRange);
+            }
+        });
+    }
+
+    function openAddExpenseModal() {
+        Modal.open({
+            title: 'Add New Expense',
+            fields: expenseFields,
+            data: { unit: 'monthly' },
+            onSave: async (result) => {
+                await API.Expenses.create(result);
+                await loadData(dateRange);
+            }
+        });
     }
 
     loadData(dateRange);

@@ -703,3 +703,126 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* --- Modal --- */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.15s ease;
+}
+
+.modal {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 520px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.2s ease;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.modal-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.modal-close {
+    font-size: 1.5rem;
+    line-height: 1;
+    opacity: 0.6;
+}
+
+.modal-close:hover {
+    opacity: 1;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-body .form-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid hsl(var(--border));
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(16px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* --- Row Actions --- */
+
+.data-table tr.clickable-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.data-table tr.clickable-row:hover {
+    background: hsl(var(--accent) / 0.5);
+}
+
+.btn-icon-action {
+    background: none;
+    border: none;
+    color: hsl(var(--muted-foreground));
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background 0.15s;
+}
+
+.btn-icon-action:hover {
+    color: hsl(var(--primary));
+    background: hsl(var(--accent));
+}

@@ -132,8 +132,8 @@ Router.register('subscriptions', async (container) => {
                 </div>
                 <div class="card-body">
                     <div class="flex justify-between items-center" style="margin-bottom:0.75rem;">
-                        <span class="text-sm text-muted">Plan</span>
-                        <span class="text-sm font-medium">${service.value || '—'}</span>
+                        <span class="text-sm text-muted">URL</span>
+                        <span class="text-sm font-medium">${service.url ? `<a href="${service.url}" target="_blank" class="text-primary" style="text-decoration:underline;">${service.url.replace(/https?:\/\//, '').substring(0, 25)}</a>` : '—'}</span>
                     </div>
                     <div class="flex justify-between items-center" style="margin-bottom:0.75rem;">
                         <span class="text-sm text-muted">Cost</span>

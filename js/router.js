@@ -47,7 +47,8 @@ const Router = (() => {
             'call-activity': 'Call Activity',
             'financials': 'Financials',
             'system-health': 'System Health',
-            'subscriptions': 'Subscriptions'
+            'subscriptions': 'Subscriptions',
+            'settings': 'Settings'
         };
         const titleEl = document.getElementById('page-title');
         if (titleEl) titleEl.textContent = pageTitles[path] || path;

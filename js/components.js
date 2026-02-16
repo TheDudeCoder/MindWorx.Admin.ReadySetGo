@@ -523,3 +523,105 @@ const Utils = (() => {
 
     return { formatNumber, formatCurrency, formatDuration, formatDate, formatDateTime, statusBadge, truncate };
 })();
+
+
+// --- Modal Component ---
+
+const Modal = (() => {
+    let overlay = null;
+
+    function open({ title, fields, data = {}, onSave, onDelete }) {
+        close(); // Remove any existing
+
+        overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>${title}</h3>
+                    <button class="btn btn-ghost btn-sm modal-close" aria-label="Close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    ${fields.map(f => `
+                        <div class="form-group" style="margin-bottom:1rem;">
+                            <label class="form-label">${f.label}</label>
+                            ${f.type === 'select'
+                ? `<select class="input" id="modal-${f.key}">
+                                    ${f.options.map(o => `<option value="${o}" ${data[f.key] === o ? 'selected' : ''}>${o}</option>`).join('')}
+                                   </select>`
+                : f.type === 'textarea'
+                    ? `<textarea class="input" id="modal-${f.key}" rows="3" ${f.readonly ? 'readonly disabled' : ''}>${data[f.key] ?? ''}</textarea>`
+                    : `<input class="input" type="${f.type || 'text'}" id="modal-${f.key}" value="${data[f.key] ?? ''}" ${f.readonly ? 'readonly disabled' : ''} />`
+            }
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="modal-footer">
+                    ${onDelete ? '<button class="btn btn-sm" id="modal-delete" style="background:var(--destructive);color:#fff;margin-right:auto;">Delete</button>' : ''}
+                    <button class="btn btn-outline btn-sm" id="modal-cancel">Cancel</button>
+                    <button class="btn btn-primary btn-sm" id="modal-save">Save</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Focus first editable field
+        requestAnimationFrame(() => {
+            const firstInput = overlay.querySelector('.modal-body input:not([readonly]), .modal-body select, .modal-body textarea:not([readonly])');
+            if (firstInput) firstInput.focus();
+        });
+
+        // Events
+        overlay.querySelector('.modal-close').addEventListener('click', close);
+        overlay.querySelector('#modal-cancel').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        overlay.querySelector('#modal-save').addEventListener('click', async () => {
+            const result = {};
+            fields.forEach(f => {
+                if (!f.readonly) {
+                    const el = document.getElementById(`modal-${f.key}`);
+                    result[f.key] = el ? el.value : '';
+                }
+            });
+            const saveBtn = overlay.querySelector('#modal-save');
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
+            try {
+                await onSave(result);
+                close();
+            } catch (err) {
+                saveBtn.textContent = 'Save';
+                saveBtn.disabled = false;
+                alert('Error: ' + (err.message || 'Save failed'));
+            }
+        });
+
+        if (onDelete) {
+            overlay.querySelector('#modal-delete').addEventListener('click', async () => {
+                if (!confirm('Are you sure you want to delete this item?')) return;
+                const delBtn = overlay.querySelector('#modal-delete');
+                delBtn.textContent = 'Deleting...';
+                delBtn.disabled = true;
+                try {
+                    await onDelete();
+                    close();
+                } catch (err) {
+                    delBtn.textContent = 'Delete';
+                    delBtn.disabled = false;
+                    alert('Error: ' + (err.message || 'Delete failed'));
+                }
+            });
+        }
+    }
+
+    function close() {
+        if (overlay) {
+            overlay.remove();
+            overlay = null;
+        }
+    }
+
+    return { open, close };
+})();

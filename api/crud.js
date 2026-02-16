@@ -9,6 +9,7 @@ const ALLOWED = [
     'leads-lookup', 'leads-create', 'leads-update', 'leads-delete',
     'sales-lookup', 'sales-create', 'sales-update', 'sales-delete',
     'expenses-lookup', 'expenses-create', 'expenses-update', 'expenses-delete',
+    'configuration-lookup', 'configuration-update',
     'contactstatus-lookup', 'leadstatus-lookup',
     'executions-lookup'
 ];

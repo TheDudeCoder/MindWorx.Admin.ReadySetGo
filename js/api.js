@@ -121,6 +121,12 @@ const API = (() => {
         delete: (data) => remove('expenses', data)
     };
 
+    // Configuration (Name/Value pairs — lookup all + update by Name)
+    const Configuration = {
+        lookup: () => crud('configuration-lookup', { operation: 'get', filters: {} }),
+        update: (data) => crud('configuration-update', { operation: 'update', data })
+    };
+
     // Read-only status lookups (small config tabs — always fetch all rows)
     const ContactStatus = {
         lookup: () => crud('contactstatus-lookup', { operation: 'get' })
@@ -135,7 +141,7 @@ const API = (() => {
         lookup: (filters) => lookup('executions', filters)
     };
 
-    return { crud, lookup, create, update, remove, Contacts, CallLog, Logs, Leads, Sales, Expenses, ContactStatus, LeadStatus, Executions };
+    return { crud, lookup, create, update, remove, Contacts, CallLog, Logs, Leads, Sales, Expenses, Configuration, ContactStatus, LeadStatus, Executions };
 })();
 
 // --- Custom Error Class ---
