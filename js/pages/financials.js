@@ -214,6 +214,7 @@ Router.register('financials', async (container) => {
             DataTable.render(tableEl, {
                 columns: [
                     { key: 'name', label: 'Service' },
+                    { key: 'type', label: 'Type' },
                     { key: 'url', label: 'URL', render: (v) => v ? `<a href="${v}" target="_blank" class="text-primary" style="text-decoration:underline;">${Utils.truncate(v, 30)}</a>` : '—' },
                     { key: 'description', label: 'Description', render: (v) => Utils.truncate(v, 40) },
                     { key: 'cost', label: 'Cost', render: (v) => Utils.formatCurrency(v) },
@@ -247,6 +248,7 @@ Router.register('financials', async (container) => {
 
     const expenseFields = [
         { key: 'name', label: 'Service Name', type: 'text' },
+        { key: 'type', label: 'Expense Type', type: 'select', options: ['Subscription', 'Purchase', 'Other'] },
         { key: 'url', label: 'URL', type: 'text' },
         { key: 'description', label: 'Description', type: 'textarea' },
         { key: 'cost', label: 'Cost ($)', type: 'number' },
