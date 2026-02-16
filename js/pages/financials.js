@@ -259,23 +259,28 @@ Router.register('financials', async (container) => {
 
     // ---- Expense Modals ----
 
-    const expenseFields = [
-        { key: 'name', label: 'Service Name', type: 'text' },
-        { key: 'type', label: 'Expense Type', type: 'select', options: ['Subscription', 'Purchase', 'Other'] },
-        { key: 'url', label: 'URL', type: 'text' },
-        { key: 'description', label: 'Description', type: 'textarea' },
-        { key: 'cost', label: 'Cost ($)', type: 'number' },
-        { key: 'unit', label: 'Billing Cycle', type: 'select', options: ['monthly', 'annual', 'one-time'] },
-        { key: 'start_date', label: 'Start Date', type: 'date' },
-        { key: 'expiration_date', label: 'Expiration Date', type: 'date' }
-    ];
+    let expenseTypeOptions = ['Subscription', 'Purchase', 'Other'];
+    let expenseUnitOptions = ['Monthly', 'Annual', 'One-Time'];
+
+    function getExpenseFields() {
+        return [
+            { key: 'name', label: 'Service Name', type: 'text' },
+            { key: 'type', label: 'Expense Type', type: 'select', options: expenseTypeOptions },
+            { key: 'url', label: 'URL', type: 'text' },
+            { key: 'description', label: 'Description', type: 'textarea' },
+            { key: 'cost', label: 'Cost ($)', type: 'number' },
+            { key: 'unit', label: 'Billing Cycle', type: 'select', options: expenseUnitOptions },
+            { key: 'start_date', label: 'Start Date', type: 'date' },
+            { key: 'expiration_date', label: 'Expiration Date', type: 'date' }
+        ];
+    }
 
     function openEditExpenseModal(row) {
         Modal.open({
             title: `Edit: ${row.name}`,
             fields: [
                 { key: 'name', label: 'Service Name', type: 'text', readonly: true },
-                ...expenseFields.slice(1)
+                ...getExpenseFields().slice(1)
             ],
             data: row,
             onSave: async (result) => {
@@ -292,8 +297,8 @@ Router.register('financials', async (container) => {
     function openAddExpenseModal() {
         Modal.open({
             title: 'Add New Expense',
-            fields: expenseFields,
-            data: { unit: 'monthly' },
+            fields: getExpenseFields(),
+            data: { unit: expenseUnitOptions[0] || 'Monthly', type: expenseTypeOptions[0] || 'Subscription' },
             onSave: async (result) => {
                 await API.Expenses.create(result);
                 await loadData(dateRange);
@@ -301,5 +306,25 @@ Router.register('financials', async (container) => {
         });
     }
 
-    loadData(dateRange);
+    // Load dynamic dropdown options, then initial data
+    async function init() {
+        try {
+            const [typeResult, unitResult] = await Promise.all([
+                API.ExpenseType.lookup().catch(() => ({ data: [] })),
+                API.ExpenseUnit.lookup().catch(() => ({ data: [] }))
+            ]);
+
+            const types = (typeResult.data || []).map(r => r.Name).filter(Boolean);
+            const units = (unitResult.data || []).map(r => r.Name).filter(Boolean);
+
+            if (types.length > 0) expenseTypeOptions = types;
+            if (units.length > 0) expenseUnitOptions = units;
+        } catch (err) {
+            console.warn('Could not load expense options, using defaults:', err);
+        }
+
+        loadData(dateRange);
+    }
+
+    init();
 });

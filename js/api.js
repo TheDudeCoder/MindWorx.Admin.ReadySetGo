@@ -141,7 +141,16 @@ const API = (() => {
         lookup: (filters) => lookup('executions', filters)
     };
 
-    return { crud, lookup, create, update, remove, Contacts, CallLog, Logs, Leads, Sales, Expenses, Configuration, ContactStatus, LeadStatus, Executions };
+    // Read-only expense config lookups
+    const ExpenseType = {
+        lookup: () => crud('expensetype-lookup', { operation: 'get' })
+    };
+
+    const ExpenseUnit = {
+        lookup: () => crud('expenseunit-lookup', { operation: 'get' })
+    };
+
+    return { crud, lookup, create, update, remove, Contacts, CallLog, Logs, Leads, Sales, Expenses, Configuration, ContactStatus, LeadStatus, Executions, ExpenseType, ExpenseUnit };
 })();
 
 // --- Custom Error Class ---

@@ -11,6 +11,7 @@ const ALLOWED = [
     'expenses-lookup', 'expenses-create', 'expenses-update', 'expenses-delete',
     'configuration-lookup', 'configuration-update',
     'contactstatus-lookup', 'leadstatus-lookup',
+    'expensetype-lookup', 'expenseunit-lookup',
     'executions-lookup'
 ];
 
