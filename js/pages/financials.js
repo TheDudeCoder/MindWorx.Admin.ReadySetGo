@@ -71,12 +71,13 @@ Router.register('financials', async (container) => {
     async function loadData(range) {
         try {
             const [salesResult, expensesResult, logsResult] = await Promise.all([
-                API.Sales.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
+                API.Sales.lookup({}).catch(() => ({ data: [] })),
                 API.Expenses.lookup({}).catch(() => ({ data: [] })),
                 API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }))
             ]);
 
-            salesData = salesResult.data || salesResult.results || [];
+            const allSales = salesResult.data || salesResult.results || [];
+            salesData = filterByDate(allSales, 'sale_date', range);
             expensesData = expensesResult.data || expensesResult.results || [];
             const logs = logsResult.data || logsResult.results || [];
 
@@ -89,6 +90,18 @@ Router.register('financials', async (container) => {
         } catch (err) {
             console.error('Financials load error:', err);
         }
+    }
+
+    function filterByDate(records, dateField, range) {
+        if (!range.start && !range.end) return records;
+        return records.filter(r => {
+            const val = r[dateField];
+            if (!val) return false;
+            const d = val.split('T')[0];
+            if (range.start && d < range.start) return false;
+            if (range.end && d > range.end) return false;
+            return true;
+        });
     }
 
     function renderKPIs() {

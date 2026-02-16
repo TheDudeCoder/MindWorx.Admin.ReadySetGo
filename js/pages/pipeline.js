@@ -44,13 +44,15 @@ Router.register('pipeline', async (container) => {
             tableEl.innerHTML = '<div class="flex justify-center" style="padding:2rem;"><div class="spinner"></div></div>';
 
             if (currentTab === 'contacts') {
-                const result = await API.Contacts.lookup({ start_date: range.start, end_date: range.end });
-                const data = result.data || result.results || [];
+                const result = await API.Contacts.lookup({});
+                const allData = result.data || result.results || [];
+                const data = filterByDate(allData, 'created_on', range);
                 renderKPIs(data, 'contacts');
                 renderContactsTable(data, tableEl);
             } else {
-                const result = await API.Leads.lookup({ start_date: range.start, end_date: range.end });
-                const data = result.data || result.results || [];
+                const result = await API.Leads.lookup({});
+                const allData = result.data || result.results || [];
+                const data = filterByDate(allData, 'discovered_at', range);
                 renderKPIs(data, 'leads');
                 renderLeadsTable(data, tableEl);
             }
@@ -62,6 +64,18 @@ Router.register('pipeline', async (container) => {
                 </div>
             `;
         }
+    }
+
+    function filterByDate(records, dateField, range) {
+        if (!range.start && !range.end) return records;
+        return records.filter(r => {
+            const val = r[dateField];
+            if (!val) return false;
+            const d = val.split('T')[0];
+            if (range.start && d < range.start) return false;
+            if (range.end && d > range.end) return false;
+            return true;
+        });
     }
 
     function renderKPIs(data, type) {

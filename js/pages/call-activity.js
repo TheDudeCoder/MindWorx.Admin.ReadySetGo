@@ -41,8 +41,9 @@ Router.register('call-activity', async (container) => {
 
     async function loadData(range) {
         try {
-            const result = await API.CallLog.lookup({ start_date: range.start, end_date: range.end });
-            const data = result.data || result.results || [];
+            const result = await API.CallLog.lookup({});
+            const allData = result.data || result.results || [];
+            const data = filterByDate(allData, 'call_started_at', range);
 
             renderKPIs(data);
             renderVolumeChart(data);
@@ -51,6 +52,18 @@ Router.register('call-activity', async (container) => {
         } catch (err) {
             console.error('Call Activity load error:', err);
         }
+    }
+
+    function filterByDate(records, dateField, range) {
+        if (!range.start && !range.end) return records;
+        return records.filter(r => {
+            const val = r[dateField];
+            if (!val) return false;
+            const d = val.split('T')[0];
+            if (range.start && d < range.start) return false;
+            if (range.end && d > range.end) return false;
+            return true;
+        });
     }
 
     function renderKPIs(data) {
