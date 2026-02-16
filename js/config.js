@@ -10,10 +10,10 @@
 window.MINDWORX_CONFIG = {
     // Google OAuth Client ID (from Google Cloud Console)
     // Replace with your actual Client ID
-    GOOGLE_CLIENT_ID: '',
+    GOOGLE_CLIENT_ID: '653798738728-knp6hs3debrrhqosmq23udspkkepdtv6.apps.googleusercontent.com',
 
     // Authorized email — only this Google account can log in
-    AUTHORIZED_EMAIL: '',
+    AUTHORIZED_EMAIL: 'mindworxai@gmail.com',
 
     // API base URL — points to the Vercel serverless proxy
     // In production: '' (same origin, relative path to /api/crud)
