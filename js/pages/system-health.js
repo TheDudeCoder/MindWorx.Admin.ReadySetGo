@@ -292,14 +292,25 @@ Router.register('system-health', async (container) => {
                 { key: 'status', label: 'Status', render: (v) => Utils.statusBadge(v) },
                 { key: 'workflow', label: 'Workflow', render: (v) => Utils.truncate(v, 30) },
                 { key: 'category', label: 'Category' },
-                { key: 'tokens', label: 'Tokens', render: (v) => Utils.formatNumber(v) },
-                { key: 'cost', label: 'Cost', render: (v) => Utils.formatCurrency(v) },
-                { key: 'notes', label: 'Notes', render: (v) => Utils.truncate(v, 40) }
+                { key: 'notes', label: 'Notes', render: (v) => Utils.truncate(v, 40) },
+                {
+                    key: '_actions', label: '', width: '70px', sortable: false,
+                    render: (_, row) => `<button class="btn btn-ghost btn-sm detail-btn" data-id="${row.log_id}" data-type="log" style="padding:0.2rem 0.5rem;font-size:0.75rem;">View</button>`
+                }
             ],
             data: filtered,
             searchable: true,
             pageSize: 20,
             emptyMessage: 'No logs found for this period'
+        });
+
+        // Attach click handlers for View buttons
+        tableEl.querySelectorAll('.detail-btn[data-type="log"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const logId = btn.getAttribute('data-id');
+                const log = allLogs.find(l => l.log_id === logId);
+                if (log) showDetailModal('log', log);
+            });
         });
     }
 
@@ -342,8 +353,8 @@ Router.register('system-health', async (container) => {
                     render: (v) => v || '—'
                 },
                 {
-                    key: 'id', label: 'Execution ID',
-                    render: (v) => v ? `<span class="text-muted text-sm">${Utils.truncate(String(v), 12)}</span>` : '—'
+                    key: '_actions', label: '', width: '70px', sortable: false,
+                    render: (_, row) => `<button class="btn btn-ghost btn-sm detail-btn" data-id="${row.execution_id || row.id}" data-type="exec" style="padding:0.2rem 0.5rem;font-size:0.75rem;">View</button>`
                 }
             ],
             data: filtered,
@@ -351,6 +362,154 @@ Router.register('system-health', async (container) => {
             pageSize: 20,
             emptyMessage: 'No executions found'
         });
+
+        // Attach click handlers for View buttons
+        tableEl.querySelectorAll('.detail-btn[data-type="exec"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const execId = btn.getAttribute('data-id');
+                const exec = allExecutions.find(e => (e.execution_id || e.id) === execId);
+                if (exec) showDetailModal('exec', exec);
+            });
+        });
+    }
+
+    // ---- Detail Modal ----
+
+    function showDetailModal(type, item) {
+        // Remove any existing detail modal
+        document.querySelectorAll('.detail-overlay').forEach(el => el.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay detail-overlay';
+
+        let title, bodyHTML;
+
+        if (type === 'log') {
+            title = 'Log Details';
+            bodyHTML = `
+                <div class="detail-grid">
+                    <div class="detail-row">
+                        <span class="detail-label">Log ID</span>
+                        <span class="detail-value text-sm text-muted">${item.log_id || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Timestamp</span>
+                        <span class="detail-value">${Utils.formatDateTime(item.date_time)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Entity</span>
+                        <span class="detail-value">${item.entity || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Entity ID</span>
+                        <span class="detail-value">${item.entity_id || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Action</span>
+                        <span class="detail-value">${item.action || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value">${Utils.statusBadge(item.status)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Workflow</span>
+                        <span class="detail-value">${item.workflow || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Category</span>
+                        <span class="detail-value">${item.category || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tokens</span>
+                        <span class="detail-value">${Utils.formatNumber(item.tokens)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Cost</span>
+                        <span class="detail-value">${Utils.formatCurrency(item.cost)}</span>
+                    </div>
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Notes</span>
+                        <div class="detail-notes">${item.notes || '—'}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            title = 'Execution Details';
+            const n8nUrl = item.execution_url || (item.workflow_id
+                ? `https://n8n.srv1303475.hstgr.cloud/workflow/${item.workflow_id}/executions/${item.execution_id || item.id}`
+                : null);
+
+            bodyHTML = `
+                <div class="detail-grid">
+                    <div class="detail-row">
+                        <span class="detail-label">Execution ID</span>
+                        <span class="detail-value text-sm text-muted">${item.execution_id || item.id || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Workflow</span>
+                        <span class="detail-value">${item.workflow_name || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Workflow ID</span>
+                        <span class="detail-value text-sm text-muted">${item.workflow_id || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value">${Utils.statusBadge((item.status || '').toLowerCase())}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Started</span>
+                        <span class="detail-value">${Utils.formatDateTime(item.started_at)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Finished</span>
+                        <span class="detail-value">${Utils.formatDateTime(item.finished_at)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Duration</span>
+                        <span class="detail-value">${item.duration_ms != null ? (item.duration_ms < 1000 ? item.duration_ms + 'ms' : (item.duration_ms / 1000).toFixed(1) + 's') : '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Mode</span>
+                        <span class="detail-value">${item.mode || '—'}</span>
+                    </div>
+                    ${item.error ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Error</span>
+                        <div class="detail-notes" style="color:var(--destructive);">${item.error}</div>
+                    </div>` : ''}
+                    ${n8nUrl ? `
+                    <div class="detail-row full-width" style="margin-top:0.5rem;">
+                        <a href="${n8nUrl}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="width:100%;text-align:center;">
+                            Open in n8n ↗
+                        </a>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:540px;">
+                <div class="modal-header">
+                    <h3>${title}</h3>
+                    <button class="btn btn-ghost btn-sm modal-close" aria-label="Close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:1.25rem;">
+                    ${bodyHTML}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline btn-sm" id="detail-close">Close</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Close handlers
+        overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('#detail-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     }
 
     loadData(dateRange);

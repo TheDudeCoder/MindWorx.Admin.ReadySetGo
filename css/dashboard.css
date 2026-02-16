@@ -826,3 +826,57 @@
     color: hsl(var(--primary));
     background: hsl(var(--accent));
 }
+
+/* --- Detail Modal Grid --- */
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.5rem;
+}
+
+.detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.detail-row.full-width {
+    grid-column: 1 / -1;
+}
+
+.detail-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: hsl(var(--muted-foreground));
+}
+
+.detail-value {
+    font-size: 0.9rem;
+    color: hsl(var(--foreground));
+    word-break: break-word;
+}
+
+.detail-notes {
+    font-size: 0.85rem;
+    color: hsl(var(--foreground));
+    background: hsl(var(--accent));
+    padding: 0.75rem;
+    border-radius: var(--radius);
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.detail-btn {
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+
+.detail-btn:hover {
+    opacity: 1;
+}
