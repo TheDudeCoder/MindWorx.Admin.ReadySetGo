@@ -15,16 +15,22 @@ Router.register('pipeline', async (container) => {
 
         <div id="pipeline-kpi"></div>
 
-        <!-- Tab Switcher -->
-        <div class="flex gap-2" style="margin-bottom:1rem;">
+        <!-- Tab Switcher + Status Filter -->
+        <div class="flex gap-2 items-center" style="margin-bottom:1rem;">
             <button class="btn btn-primary btn-sm" id="tab-contacts" data-tab="contacts">Contacts</button>
             <button class="btn btn-outline btn-sm" id="tab-leads" data-tab="leads">Leads</button>
+            <div style="margin-left:auto;">
+                <select class="input" id="pipeline-status-filter" style="font-size:0.85rem;padding:0.3rem 0.75rem;min-width:160px;">
+                    <option value="">All Statuses</option>
+                </select>
+            </div>
         </div>
 
         <div id="pipeline-table"></div>
     `;
 
     let currentTab = 'contacts';
+    let currentStatusFilter = '';
     let contactStatuses = [];
     let leadStatuses = [];
     let contactsData = [];
@@ -35,11 +41,27 @@ Router.register('pipeline', async (container) => {
     document.getElementById('tab-contacts').addEventListener('click', () => switchTab('contacts'));
     document.getElementById('tab-leads').addEventListener('click', () => switchTab('leads'));
 
+    // Status filter
+    const statusFilterEl = document.getElementById('pipeline-status-filter');
+    statusFilterEl.addEventListener('change', () => {
+        currentStatusFilter = statusFilterEl.value;
+        loadData(dateRange);
+    });
+
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('tab-contacts').className = tab === 'contacts' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
         document.getElementById('tab-leads').className = tab === 'leads' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+        currentStatusFilter = '';
+        rebuildStatusFilterOptions();
         loadData(dateRange);
+    }
+
+    function rebuildStatusFilterOptions() {
+        const statuses = currentTab === 'contacts' ? contactStatuses : leadStatuses;
+        statusFilterEl.innerHTML = '<option value="">All Statuses</option>' +
+            statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+        statusFilterEl.value = currentStatusFilter;
     }
 
     async function loadData(range) {
@@ -51,14 +73,16 @@ Router.register('pipeline', async (container) => {
                 const result = await API.Contacts.lookup({});
                 const allData = result.data || result.results || [];
                 contactsData = filterByDate(allData, 'created_on', range);
-                renderKPIs(contactsData, 'contacts');
-                renderContactsTable(contactsData, tableEl);
+                const filtered = filterByStatus(contactsData);
+                renderKPIs(filtered, 'contacts');
+                renderContactsTable(filtered, tableEl);
             } else {
                 const result = await API.Leads.lookup({});
                 const allData = result.data || result.results || [];
                 leadsData = filterByDate(allData, 'discovered_at', range);
-                renderKPIs(leadsData, 'leads');
-                renderLeadsTable(leadsData, tableEl);
+                const filtered = filterByStatus(leadsData);
+                renderKPIs(filtered, 'leads');
+                renderLeadsTable(filtered, tableEl);
             }
         } catch (err) {
             console.error('Pipeline load error:', err);
@@ -68,6 +92,11 @@ Router.register('pipeline', async (container) => {
                 </div>
             `;
         }
+    }
+
+    function filterByStatus(records) {
+        if (!currentStatusFilter) return records;
+        return records.filter(r => r.status === currentStatusFilter);
     }
 
     function filterByDate(records, dateField, range) {
@@ -296,6 +325,7 @@ Router.register('pipeline', async (container) => {
             console.error('Failed to load status options:', err);
         }
 
+        rebuildStatusFilterOptions();
         loadData(dateRange);
     }
 
