@@ -25,6 +25,10 @@ Router.register('pipeline', async (container) => {
     `;
 
     let currentTab = 'contacts';
+    let contactStatuses = [];
+    let leadStatuses = [];
+    let contactsData = [];
+    let leadsData = [];
     let dateRange = DateRange.render('pipeline-date-range', (range) => loadData(range), 'All');
 
     // Tab switching
@@ -46,15 +50,15 @@ Router.register('pipeline', async (container) => {
             if (currentTab === 'contacts') {
                 const result = await API.Contacts.lookup({});
                 const allData = result.data || result.results || [];
-                const data = filterByDate(allData, 'created_on', range);
-                renderKPIs(data, 'contacts');
-                renderContactsTable(data, tableEl);
+                contactsData = filterByDate(allData, 'created_on', range);
+                renderKPIs(contactsData, 'contacts');
+                renderContactsTable(contactsData, tableEl);
             } else {
                 const result = await API.Leads.lookup({});
                 const allData = result.data || result.results || [];
-                const data = filterByDate(allData, 'discovered_at', range);
-                renderKPIs(data, 'leads');
-                renderLeadsTable(data, tableEl);
+                leadsData = filterByDate(allData, 'discovered_at', range);
+                renderKPIs(leadsData, 'leads');
+                renderLeadsTable(leadsData, tableEl);
             }
         } catch (err) {
             console.error('Pipeline load error:', err);
@@ -97,24 +101,94 @@ Router.register('pipeline', async (container) => {
         KPI.render(kpiEl, cards);
     }
 
+    // ---- Status Select Builder ----
+
+    function buildStatusSelect(currentStatus, statuses, idField, idValue) {
+        const opts = statuses.map(s =>
+            `<option value="${s}" ${s === currentStatus ? 'selected' : ''}>${s}</option>`
+        ).join('');
+        return `<select class="input status-select" data-type="${currentTab}" data-id-field="${idField}" data-id="${idValue}" style="font-size:0.8rem;padding:0.25rem 0.5rem;min-width:130px;">${opts}</select>`;
+    }
+
+    // ---- Handle inline status change ----
+
+    function attachStatusChangeHandlers(tableEl) {
+        tableEl.addEventListener('change', async (e) => {
+            const sel = e.target.closest('.status-select');
+            if (!sel) return;
+
+            const newStatus = sel.value;
+            const type = sel.dataset.type;
+            const idField = sel.dataset.idField;
+            const id = sel.dataset.id;
+
+            sel.disabled = true;
+            sel.style.opacity = '0.5';
+
+            try {
+                if (type === 'contacts') {
+                    await API.Contacts.update({ [idField]: id, status: newStatus });
+                } else {
+                    await API.Leads.update({ [idField]: id, status: newStatus });
+                }
+                // Update local data
+                const dataset = type === 'contacts' ? contactsData : leadsData;
+                const row = dataset.find(r => String(r[idField]) === String(id));
+                if (row) row.status = newStatus;
+                renderKPIs(dataset, type);
+            } catch (err) {
+                console.error('Status update error:', err);
+                sel.value = sel.dataset.previousValue || '';
+            } finally {
+                sel.disabled = false;
+                sel.style.opacity = '1';
+            }
+        });
+
+        // Store previous value on focus for rollback
+        tableEl.addEventListener('focus', (e) => {
+            if (e.target.classList.contains('status-select')) {
+                e.target.dataset.previousValue = e.target.value;
+            }
+        }, true);
+    }
+
+    // ---- Contacts Table ----
+
     function renderContactsTable(data, tableEl) {
         tableEl.innerHTML = '';
         DataTable.render(tableEl, {
             columns: [
                 { key: 'full_name', label: 'Name' },
                 { key: 'company_name', label: 'Company', render: (v) => Utils.truncate(v, 30) },
-                { key: 'email', label: 'Email', render: (v) => v ? `<a href="mailto:${v}">${v}</a>` : '—' },
                 { key: 'phone', label: 'Phone' },
-                { key: 'status', label: 'Status', render: (v) => Utils.statusBadge(v) },
+                { key: 'status', label: 'Status', render: (v, row) => buildStatusSelect(v, contactStatuses, 'contact_id', row.contact_id) },
                 { key: 'source', label: 'Source' },
-                { key: 'created_on', label: 'Created', render: (v) => Utils.formatDate(v) }
+                { key: 'created_on', label: 'Created', render: (v) => Utils.formatDate(v) },
+                {
+                    key: '_actions', label: '', width: '80px', sortable: false,
+                    render: (_, row) => `<button class="btn btn-outline btn-sm" data-action="edit-contact" data-id="${row.contact_id}">Edit</button>`
+                }
             ],
             data,
             searchable: true,
             pageSize: 15,
             emptyMessage: 'No contacts found for this period'
         });
+
+        attachStatusChangeHandlers(tableEl);
+
+        // Edit button handler
+        tableEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="edit-contact"]');
+            if (!btn) return;
+            const id = btn.dataset.id;
+            const row = contactsData.find(r => String(r.contact_id) === String(id));
+            if (row) openContactModal(row);
+        });
     }
+
+    // ---- Leads Table ----
 
     function renderLeadsTable(data, tableEl) {
         tableEl.innerHTML = '';
@@ -122,20 +196,108 @@ Router.register('pipeline', async (container) => {
             columns: [
                 { key: 'business_name', label: 'Business' },
                 { key: 'category', label: 'Category' },
-                { key: 'email', label: 'Email', render: (v) => v ? `<a href="mailto:${v}">${v}</a>` : '—' },
                 { key: 'phone', label: 'Phone' },
-                { key: 'status', label: 'Status', render: (v) => Utils.statusBadge(v) },
+                { key: 'status', label: 'Status', render: (v, row) => buildStatusSelect(v, leadStatuses, 'lead_id', row.lead_id) },
                 { key: 'source', label: 'Source' },
                 { key: 'rating', label: 'Rating', render: (v) => v ? `⭐ ${v}` : '—' },
-                { key: 'review_count', label: 'Reviews' },
-                { key: 'discovered_at', label: 'Found', render: (v) => Utils.formatDate(v) }
+                { key: 'discovered_at', label: 'Found', render: (v) => Utils.formatDate(v) },
+                {
+                    key: '_actions', label: '', width: '80px', sortable: false,
+                    render: (_, row) => `<button class="btn btn-outline btn-sm" data-action="edit-lead" data-id="${row.lead_id}">Edit</button>`
+                }
             ],
             data,
             searchable: true,
             pageSize: 15,
             emptyMessage: 'No leads found for this period'
         });
+
+        attachStatusChangeHandlers(tableEl);
+
+        // Edit button handler
+        tableEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="edit-lead"]');
+            if (!btn) return;
+            const id = btn.dataset.id;
+            const row = leadsData.find(r => String(r.lead_id) === String(id));
+            if (row) openLeadModal(row);
+        });
     }
 
-    loadData(dateRange);
+    // ---- Contact Edit Modal ----
+
+    function openContactModal(row) {
+        Modal.open({
+            title: `Edit: ${row.full_name || 'Contact'}`,
+            fields: [
+                { key: 'contact_id', label: 'Contact ID', type: 'text', readonly: true },
+                { key: 'full_name', label: 'Full Name', type: 'text' },
+                { key: 'email', label: 'Email', type: 'text' },
+                { key: 'phone', label: 'Phone', type: 'text' },
+                { key: 'company_name', label: 'Company', type: 'text' },
+                { key: 'title', label: 'Title', type: 'text' },
+                { key: 'status', label: 'Status', type: 'select', options: contactStatuses },
+                { key: 'source', label: 'Source', type: 'text' },
+                { key: 'zip', label: 'ZIP', type: 'text' },
+                { key: 'subject', label: 'Subject', type: 'text' },
+                { key: 'urgency_level', label: 'Urgency', type: 'text' },
+                { key: 'call_summary', label: 'Last Call Summary', type: 'textarea', readonly: true }
+            ],
+            data: row,
+            onSave: async (result) => {
+                await API.Contacts.update({ contact_id: row.contact_id, ...result });
+                await loadData(dateRange);
+            }
+        });
+    }
+
+    // ---- Lead Edit Modal ----
+
+    function openLeadModal(row) {
+        Modal.open({
+            title: `Edit: ${row.business_name || 'Lead'}`,
+            fields: [
+                { key: 'lead_id', label: 'Lead ID', type: 'text', readonly: true },
+                { key: 'business_name', label: 'Business Name', type: 'text' },
+                { key: 'category', label: 'Category', type: 'text' },
+                { key: 'email', label: 'Email', type: 'text' },
+                { key: 'phone', label: 'Phone', type: 'text' },
+                { key: 'website', label: 'Website', type: 'text' },
+                { key: 'address', label: 'Address', type: 'text' },
+                { key: 'status', label: 'Status', type: 'select', options: leadStatuses },
+                { key: 'source', label: 'Source', type: 'text' },
+                { key: 'rating', label: 'Rating', type: 'text', readonly: true },
+                { key: 'review_count', label: 'Reviews', type: 'text', readonly: true },
+                { key: 'notes', label: 'Notes', type: 'textarea' }
+            ],
+            data: row,
+            onSave: async (result) => {
+                await API.Leads.update({ lead_id: row.lead_id, ...result });
+                await loadData(dateRange);
+            }
+        });
+    }
+
+    // ---- Init: load status options, then data ----
+
+    async function init() {
+        try {
+            const [csResult, lsResult] = await Promise.all([
+                API.ContactStatus.lookup().catch(() => ({ data: [] })),
+                API.LeadStatus.lookup().catch(() => ({ data: [] }))
+            ]);
+
+            const cs = (csResult.data || []).map(r => r.Name).filter(Boolean);
+            const ls = (lsResult.data || []).map(r => r.Name).filter(Boolean);
+
+            if (cs.length > 0) contactStatuses = cs;
+            if (ls.length > 0) leadStatuses = ls;
+        } catch (err) {
+            console.error('Failed to load status options:', err);
+        }
+
+        loadData(dateRange);
+    }
+
+    init();
 });
