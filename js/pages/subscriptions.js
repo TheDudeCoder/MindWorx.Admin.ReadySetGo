@@ -22,18 +22,18 @@ Router.register('subscriptions', async (container) => {
 
         <div id="subs-kpi"></div>
 
-        <div id="subs-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;margin-bottom:1.5rem;">
-            <div class="flex justify-center items-center" style="padding:3rem;grid-column:1/-1;">
-                <div class="spinner"></div>
-            </div>
-        </div>
-
         <div class="card" style="margin-bottom:1.5rem;">
             <div class="card-header"><h3>Monthly Burn Rate Breakdown</h3></div>
             <div class="card-body">
                 <div class="chart-container" style="height:300px;">
                     <canvas id="subs-burn-chart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <div id="subs-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;margin-bottom:1.5rem;">
+            <div class="flex justify-center items-center" style="padding:3rem;grid-column:1/-1;">
+                <div class="spinner"></div>
             </div>
         </div>
     `;
