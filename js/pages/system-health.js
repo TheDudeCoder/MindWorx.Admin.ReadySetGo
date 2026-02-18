@@ -113,12 +113,11 @@ Router.register('system-health', async (container) => {
     async function loadData(range) {
         try {
             const [logsResult, execResult] = await Promise.all([
-                API.Logs.lookup({}).catch(() => ({ data: [] })),
+                API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
                 API.Executions.lookup({}).catch(() => ({ data: [] }))
             ]);
 
-            const allLogsRaw = logsResult.data || logsResult.results || [];
-            allLogs = filterByDate(allLogsRaw, 'date_time', range);
+            allLogs = logsResult.data || logsResult.results || [];
             allExecutions = execResult.data || execResult.results || [];
 
             // Normalize executions — ensure they're an array
@@ -133,18 +132,6 @@ Router.register('system-health', async (container) => {
         } catch (err) {
             console.error('System Health load error:', err);
         }
-    }
-
-    function filterByDate(records, dateField, range) {
-        if (!range.start && !range.end) return records;
-        return records.filter(r => {
-            const val = r[dateField];
-            if (!val) return false;
-            const d = val.split('T')[0];
-            if (range.start && d < range.start) return false;
-            if (range.end && d > range.end) return false;
-            return true;
-        });
     }
 
     // ---- Logs Filters ----
