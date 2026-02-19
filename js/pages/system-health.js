@@ -84,6 +84,7 @@ Router.register('system-health', async (container) => {
     let currentTab = 'logs';
     let allLogs = [];
     let allExecutions = [];
+    let workflowNameMap = {};
     let dateRange = DateRange.render('health-date-range', (range) => loadData(range), '7d');
 
     // Tab switching
@@ -123,6 +124,25 @@ Router.register('system-health', async (container) => {
             // Normalize executions — ensure they're an array
             if (!Array.isArray(allExecutions)) allExecutions = [];
 
+            // Build workflow name map from execution data
+            workflowNameMap = {};
+            allExecutions.forEach(exec => {
+                const id = exec.workflow_id;
+                const name = exec.workflow_name;
+                if (id && name && name !== id) {
+                    workflowNameMap[id] = name;
+                }
+            });
+
+            // Enrich executions with display name: "Name (ID)"
+            allExecutions.forEach(exec => {
+                const id = exec.workflow_id;
+                const name = workflowNameMap[id];
+                exec._display_name = name
+                    ? `${name} (${id})`
+                    : id || '—';
+            });
+
             populateLogsFilters();
             populateExecFilters();
             renderKPIs();
@@ -151,10 +171,19 @@ Router.register('system-health', async (container) => {
     // ---- Executions Filters ----
 
     function populateExecFilters() {
-        const workflows = [...new Set(allExecutions.map(e => e.workflow_name).filter(Boolean))].sort();
+        // Build unique workflow entries with display names
+        const wfEntries = new Map();
+        allExecutions.forEach(e => {
+            const id = e.workflow_id;
+            if (id && !wfEntries.has(id)) {
+                const name = workflowNameMap[id];
+                wfEntries.set(id, name ? `${name} (${id})` : id);
+            }
+        });
+        const sorted = [...wfEntries.entries()].sort((a, b) => a[1].localeCompare(b[1]));
         const wfSelect = document.getElementById('exec-filter-workflow');
         wfSelect.innerHTML = '<option value="">All Workflows</option>' +
-            workflows.map(w => `<option value="${w}">${Utils.truncate(w, 40)}</option>`).join('');
+            sorted.map(([id, display]) => `<option value="${id}">${Utils.truncate(display, 55)}</option>`).join('');
     }
 
     // ---- KPIs (based on Logs) ----
@@ -183,7 +212,8 @@ Router.register('system-health', async (container) => {
 
         const dateGroups = {};
         allLogs.forEach(l => {
-            const date = (l.date_time || '').split('T')[0];
+            const dt = l.created_on || '';
+            const date = dt.includes('T') ? dt.split('T')[0] : dt.split(' ')[0];
             if (!date) return;
             if (!dateGroups[date]) dateGroups[date] = { success: 0, error: 0 };
             if (l.status === 'error') dateGroups[date].error++;
@@ -269,11 +299,11 @@ Router.register('system-health', async (container) => {
         if (categoryFilter) filtered = filtered.filter(l => l.category === categoryFilter);
 
         // Sort by date descending
-        filtered.sort((a, b) => (b.date_time || '').localeCompare(a.date_time || ''));
+        filtered.sort((a, b) => (b.created_on || '').localeCompare(a.created_on || ''));
 
         DataTable.render(tableEl, {
             columns: [
-                { key: 'date_time', label: 'Timestamp', render: (v) => Utils.formatDateTime(v) },
+                { key: 'created_on', label: 'Timestamp', render: (v) => Utils.formatDateTime(v) },
                 { key: 'entity', label: 'Entity' },
                 { key: 'action', label: 'Action' },
                 { key: 'status', label: 'Status', render: (v) => Utils.statusBadge(v) },
@@ -306,7 +336,7 @@ Router.register('system-health', async (container) => {
         const statusFilter = document.getElementById('exec-filter-status').value;
 
         let filtered = [...allExecutions];
-        if (wfFilter) filtered = filtered.filter(e => e.workflow_name === wfFilter);
+        if (wfFilter) filtered = filtered.filter(e => e.workflow_id === wfFilter);
         if (statusFilter) filtered = filtered.filter(e => (e.status || '').toLowerCase() === statusFilter);
 
         // Sort by started_at descending
@@ -319,8 +349,8 @@ Router.register('system-health', async (container) => {
                     render: (v) => Utils.formatDateTime(v)
                 },
                 {
-                    key: 'workflow_name', label: 'Workflow',
-                    render: (v) => Utils.truncate(v || '—', 35)
+                    key: '_display_name', label: 'Workflow',
+                    render: (v) => Utils.truncate(v || '—', 55)
                 },
                 {
                     key: 'status', label: 'Status',
@@ -381,7 +411,7 @@ Router.register('system-health', async (container) => {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Timestamp</span>
-                        <span class="detail-value">${Utils.formatDateTime(item.date_time)}</span>
+                        <span class="detail-value">${Utils.formatDateTime(item.created_on)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Entity</span>
@@ -435,7 +465,7 @@ Router.register('system-health', async (container) => {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Workflow</span>
-                        <span class="detail-value">${item.workflow_name || '—'}</span>
+                        <span class="detail-value">${workflowNameMap[item.workflow_id] || item.workflow_name || '—'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Workflow ID</span>
