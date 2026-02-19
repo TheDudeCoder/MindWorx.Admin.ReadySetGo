@@ -17,7 +17,7 @@ Router.register('financials', async (container) => {
 
         <div class="analytics-grid" style="margin-bottom:1.5rem;">
             <div class="card span-2">
-                <div class="card-header"><h3>Revenue vs. Costs</h3></div>
+                <div class="card-header"><h3>Monthly Run Rate Trends</h3></div>
                 <div class="card-body">
                     <div class="chart-container" style="height:280px;">
                         <canvas id="fin-revenue-chart"></canvas>
@@ -144,9 +144,12 @@ Router.register('financials', async (container) => {
         const kpiEl = document.getElementById('fin-kpi');
         kpiEl.innerHTML = '';
 
-        const monthlyRecurring = salesData.reduce((sum, s) => sum + (parseFloat(s.monthly_recurring_revenue) || 0), 0);
-        const totalSetupFees = salesData.reduce((sum, s) => sum + (parseFloat(s.setup_fee) || 0), 0);
-        const totalRevenue = monthlyRecurring + totalSetupFees;
+        // Only Won sales generate revenue
+        const wonSales = salesData.filter(s => (s.status || '').toLowerCase() === 'won');
+        const wonRecurring = wonSales.filter(s => (s.contract_type || '').toLowerCase() !== 'one-time');
+
+        const wonRevenue = wonSales.reduce((sum, s) => sum + (parseFloat(s.monthly_recurring_revenue) || 0) + (parseFloat(s.setup_fee) || 0), 0);
+        const activeMRR = wonRecurring.reduce((sum, s) => sum + (parseFloat(s.monthly_recurring_revenue) || 0), 0);
 
         // Calculate monthly expenses
         const monthlyExpenses = expensesData.reduce((sum, e) => {
@@ -158,11 +161,11 @@ Router.register('financials', async (container) => {
         }, 0);
 
         const totalExpenses = monthlyExpenses + aiCosts;
-        const profit = totalRevenue - totalExpenses;
+        const profit = wonRevenue - totalExpenses;
 
         KPI.render(kpiEl, [
-            { label: 'Total Revenue', value: Utils.formatCurrency(totalRevenue), trend: 0, trendLabel: `${salesData.length} deals` },
-            { label: 'Monthly MRR', value: Utils.formatCurrency(monthlyRecurring), trend: 0, trendLabel: 'recurring' },
+            { label: 'Won Revenue', value: Utils.formatCurrency(wonRevenue), trend: 0, trendLabel: `${wonSales.length} won sales` },
+            { label: 'Active MRR', value: Utils.formatCurrency(activeMRR), trend: 0, trendLabel: `${wonRecurring.length} recurring` },
             { label: 'Total Costs', value: Utils.formatCurrency(totalExpenses), trend: 0, trendLabel: `incl. ${Utils.formatCurrency(aiCosts)} AI` },
             { label: 'Net Profit', value: Utils.formatCurrency(profit), trend: profit >= 0 ? 1 : -1, trendLabel: profit >= 0 ? 'Profitable' : 'Loss' }
         ]);
@@ -172,9 +175,14 @@ Router.register('financials', async (container) => {
         Charts.destroy('fin-revenue-chart');
         const colors = Charts.getThemeColors();
 
-        // Group sales by month using MRR
+        // Only Won + recurring sales count toward MRR trend
+        const wonRecurring = salesData.filter(s =>
+            (s.status || '').toLowerCase() === 'won' &&
+            (s.contract_type || '').toLowerCase() !== 'one-time'
+        );
+
         const revenueByMonth = {};
-        salesData.forEach(s => {
+        wonRecurring.forEach(s => {
             const date = s.sale_date || s.contract_start_date || s.created_on || '';
             const month = date.substring(0, 7); // YYYY-MM
             if (month) revenueByMonth[month] = (revenueByMonth[month] || 0) + (parseFloat(s.monthly_recurring_revenue) || 0);
