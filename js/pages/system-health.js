@@ -85,7 +85,10 @@ Router.register('system-health', async (container) => {
     let allLogs = [];
     let allExecutions = [];
     let workflowNameMap = {};
-    let dateRange = DateRange.render('health-date-range', (range) => loadData(range), '7d');
+    let logsLoaded = false;
+    let execLoaded = false;
+    let currentRange = null;
+    let dateRange = DateRange.render('health-date-range', (range) => loadData(range), 'Today');
 
     // Tab switching
     document.getElementById('tab-logs').addEventListener('click', () => switchTab('logs'));
@@ -100,55 +103,105 @@ Router.register('system-health', async (container) => {
         document.getElementById(id).addEventListener('change', () => renderTable());
     });
 
-    function switchTab(tab) {
+    async function switchTab(tab) {
         currentTab = tab;
         document.getElementById('tab-logs').className = tab === 'logs' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
         document.getElementById('tab-executions').className = tab === 'executions' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
         document.getElementById('logs-filters').style.display = tab === 'logs' ? 'flex' : 'none';
         document.getElementById('exec-filters').style.display = tab === 'executions' ? 'flex' : 'none';
+
+        // Lazy-load if tab data not yet fetched
+        if (tab === 'logs' && !logsLoaded && currentRange) {
+            const tableEl = document.getElementById('health-table');
+            tableEl.innerHTML = '<div class="flex justify-center" style="padding:2rem;"><div class="spinner"></div></div>';
+            const logsResult = await API.Logs.lookup({ start_date: currentRange.start, end_date: currentRange.end }).catch(() => ({ data: [] }));
+            allLogs = logsResult.data || logsResult.results || [];
+            logsLoaded = true;
+            populateLogsFilters();
+            renderKPIs();
+            renderOpsChart();
+            renderStatusChart();
+        } else if (tab === 'executions' && !execLoaded && currentRange) {
+            const tableEl = document.getElementById('health-table');
+            tableEl.innerHTML = '<div class="flex justify-center" style="padding:2rem;"><div class="spinner"></div></div>';
+            const execResult = await API.Executions.lookup({}).catch(() => ({ data: [] }));
+            allExecutions = execResult.data || execResult.results || [];
+            if (!Array.isArray(allExecutions)) allExecutions = [];
+            enrichExecutions();
+            execLoaded = true;
+            populateExecFilters();
+            renderKPIs();
+        }
+
         renderTable();
     }
 
     // ---- Load Data ----
 
+    function enrichExecutions() {
+        workflowNameMap = {};
+        allExecutions.forEach(exec => {
+            const id = exec.workflow_id;
+            const name = exec.workflow_name;
+            if (id && name && name !== id) {
+                workflowNameMap[id] = name;
+            }
+        });
+        allExecutions.forEach(exec => {
+            const id = exec.workflow_id;
+            const name = workflowNameMap[id];
+            exec._display_name = name
+                ? `${name} (${id})`
+                : id || '—';
+        });
+    }
+
     async function loadData(range) {
+        currentRange = range;
+        logsLoaded = false;
+        execLoaded = false;
+
+        // Show spinner
+        const tableEl = document.getElementById('health-table');
+        tableEl.innerHTML = '<div class="flex justify-center" style="padding:2rem;"><div class="spinner"></div></div>';
+
         try {
-            const [logsResult, execResult] = await Promise.all([
-                API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
-                API.Executions.lookup({}).catch(() => ({ data: [] }))
-            ]);
+            // 1. Load active tab first for immediate table render
+            if (currentTab === 'logs') {
+                const logsResult = await API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }));
+                allLogs = logsResult.data || logsResult.results || [];
+                logsLoaded = true;
+                populateLogsFilters();
+            } else {
+                const execResult = await API.Executions.lookup({}).catch(() => ({ data: [] }));
+                allExecutions = execResult.data || execResult.results || [];
+                if (!Array.isArray(allExecutions)) allExecutions = [];
+                enrichExecutions();
+                execLoaded = true;
+                populateExecFilters();
+            }
+            renderTable();
 
-            allLogs = logsResult.data || logsResult.results || [];
-            allExecutions = execResult.data || execResult.results || [];
+            // 2. Load inactive tab data sequentially
+            if (!logsLoaded) {
+                const logsResult = await API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }));
+                allLogs = logsResult.data || logsResult.results || [];
+                logsLoaded = true;
+                populateLogsFilters();
+            }
+            if (!execLoaded) {
+                const execResult = await API.Executions.lookup({}).catch(() => ({ data: [] }));
+                allExecutions = execResult.data || execResult.results || [];
+                if (!Array.isArray(allExecutions)) allExecutions = [];
+                enrichExecutions();
+                execLoaded = true;
+                populateExecFilters();
+            }
 
-            // Normalize executions — ensure they're an array
-            if (!Array.isArray(allExecutions)) allExecutions = [];
-
-            // Build workflow name map from execution data
-            workflowNameMap = {};
-            allExecutions.forEach(exec => {
-                const id = exec.workflow_id;
-                const name = exec.workflow_name;
-                if (id && name && name !== id) {
-                    workflowNameMap[id] = name;
-                }
-            });
-
-            // Enrich executions with display name: "Name (ID)"
-            allExecutions.forEach(exec => {
-                const id = exec.workflow_id;
-                const name = workflowNameMap[id];
-                exec._display_name = name
-                    ? `${name} (${id})`
-                    : id || '—';
-            });
-
-            populateLogsFilters();
-            populateExecFilters();
+            // 3. Render everything with complete data
             renderKPIs();
             renderOpsChart();
             renderStatusChart();
-            renderTable();
         } catch (err) {
             console.error('System Health load error:', err);
         }
