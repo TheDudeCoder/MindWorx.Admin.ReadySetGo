@@ -58,7 +58,7 @@ Router.register('financials', async (container) => {
     `;
 
     let currentTab = 'sales';
-    let dateRange = DateRange.render('fin-date-range', (range) => loadData(range), 'YTD');
+    let dateRange = DateRange.render('fin-date-range', (range) => loadData(range), '90d');
     let salesData = [];
     let expensesData = [];
     let aiCosts = 0;

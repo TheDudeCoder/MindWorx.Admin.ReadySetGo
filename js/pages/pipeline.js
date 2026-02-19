@@ -35,7 +35,7 @@ Router.register('pipeline', async (container) => {
     let leadStatuses = [];
     let contactsData = [];
     let leadsData = [];
-    let dateRange = DateRange.render('pipeline-date-range', (range) => { dateRange = range; loadData(range); }, 'All');
+    let dateRange = DateRange.render('pipeline-date-range', (range) => { dateRange = range; loadData(range); }, '30d');
 
     // Tab switching
     document.getElementById('tab-contacts').addEventListener('click', () => switchTab('contacts'));
