@@ -17,7 +17,7 @@ Router.register('financials', async (container) => {
 
         <div class="analytics-grid" style="margin-bottom:1.5rem;">
             <div class="card span-2">
-                <div class="card-header"><h3>Monthly Run Rate Trends</h3></div>
+                <div class="card-header"><h3>Run Rate Trend</h3></div>
                 <div class="card-body">
                     <div class="chart-container" style="height:280px;">
                         <canvas id="fin-revenue-chart"></canvas>
