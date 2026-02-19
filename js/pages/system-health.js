@@ -403,6 +403,11 @@ Router.register('system-health', async (container) => {
 
         if (type === 'log') {
             title = 'Log Details';
+            // Extract n8n URL from notes if present
+            const notesText = item.notes || '';
+            const n8nUrlMatch = notesText.match(/(https?:\/\/[^\s]*n8n[^\s]*)/i);
+            const logN8nUrl = n8nUrlMatch ? n8nUrlMatch[1] : null;
+
             bodyHTML = `
                 <div class="detail-grid">
                     <div class="detail-row">
@@ -447,8 +452,14 @@ Router.register('system-health', async (container) => {
                     </div>
                     <div class="detail-row full-width">
                         <span class="detail-label">Notes</span>
-                        <div class="detail-notes">${item.notes || '—'}</div>
+                        <div class="detail-notes">${notesText || '—'}</div>
                     </div>
+                    ${logN8nUrl ? `
+                    <div class="detail-row full-width" style="margin-top:0.5rem;">
+                        <a href="${logN8nUrl}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="width:100%;text-align:center;">
+                            Open in n8n ↗
+                        </a>
+                    </div>` : ''}
                 </div>
             `;
         } else {
