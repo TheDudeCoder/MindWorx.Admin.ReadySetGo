@@ -62,39 +62,79 @@ Router.register('financials', async (container) => {
     let salesData = [];
     let expensesData = [];
     let aiCosts = 0;
+    let salesLoaded = false;
+    let expensesLoaded = false;
+    let currentRange = null;
 
     document.getElementById('tab-sales').addEventListener('click', () => switchTab('sales'));
     document.getElementById('tab-expenses').addEventListener('click', () => switchTab('expenses'));
     document.getElementById('btn-add-sale').addEventListener('click', openAddSaleModal);
     document.getElementById('btn-add-expense').addEventListener('click', openAddExpenseModal);
 
-    function switchTab(tab) {
+    async function switchTab(tab) {
         currentTab = tab;
         document.getElementById('tab-sales').className = tab === 'sales' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
         document.getElementById('tab-expenses').className = tab === 'expenses' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
         document.getElementById('btn-add-sale').style.display = tab === 'sales' ? 'inline-flex' : 'none';
         document.getElementById('btn-add-expense').style.display = tab === 'expenses' ? 'inline-flex' : 'none';
+
+        // Lazy-load if tab data not yet fetched
+        if (tab === 'sales' && !salesLoaded && currentRange) {
+            const salesResult = await API.Sales.lookup({ start_date: currentRange.start, end_date: currentRange.end }).catch(() => ({ data: [] }));
+            salesData = salesResult.data || salesResult.results || [];
+            salesLoaded = true;
+            renderKPIs();
+            renderRevenueChart();
+        } else if (tab === 'expenses' && !expensesLoaded && currentRange) {
+            const expensesResult = await API.Expenses.lookup({}).catch(() => ({ data: [] }));
+            expensesData = expensesResult.data || expensesResult.results || [];
+            expensesLoaded = true;
+            renderKPIs();
+            renderCostChart();
+        }
+
         renderTable();
     }
 
     async function loadData(range) {
+        currentRange = range;
+        salesLoaded = false;
+        expensesLoaded = false;
+
         try {
-            const [salesResult, expensesResult, logsResult] = await Promise.all([
-                API.Sales.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
-                API.Expenses.lookup({}).catch(() => ({ data: [] })),
-                API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }))
-            ]);
+            // 1. Load active tab first for immediate table render
+            if (currentTab === 'sales') {
+                const salesResult = await API.Sales.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }));
+                salesData = salesResult.data || salesResult.results || [];
+                salesLoaded = true;
+            } else {
+                const expensesResult = await API.Expenses.lookup({}).catch(() => ({ data: [] }));
+                expensesData = expensesResult.data || expensesResult.results || [];
+                expensesLoaded = true;
+            }
+            renderTable();
 
-            salesData = salesResult.data || salesResult.results || [];
-            expensesData = expensesResult.data || expensesResult.results || [];
+            // 2. Load logs for AI cost KPIs
+            const logsResult = await API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }));
             const logs = logsResult.data || logsResult.results || [];
-
             aiCosts = logs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
 
+            // 3. Load inactive tab data for complete KPIs/charts
+            if (!salesLoaded) {
+                const salesResult = await API.Sales.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }));
+                salesData = salesResult.data || salesResult.results || [];
+                salesLoaded = true;
+            }
+            if (!expensesLoaded) {
+                const expensesResult = await API.Expenses.lookup({}).catch(() => ({ data: [] }));
+                expensesData = expensesResult.data || expensesResult.results || [];
+                expensesLoaded = true;
+            }
+
+            // 4. Render everything with complete data
             renderKPIs();
             renderRevenueChart();
             renderCostChart();
-            renderTable();
         } catch (err) {
             console.error('Financials load error:', err);
         }
