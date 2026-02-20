@@ -508,11 +508,11 @@ const Utils = (() => {
         if (!status) return '<span class="badge badge-muted">—</span>';
         const s = status.toLowerCase();
         let cls = 'badge-muted';
-        if (['new', 'raw', 'pending', 'not_sent'].includes(s)) cls = 'badge-info';
-        else if (['contacted', 'enriched', 'sent', 'in-progress', 'proposal'].includes(s)) cls = 'badge-warning';
-        else if (['scheduled meeting', 'scheduled', 'qualified', 'responded', 'opened'].includes(s)) cls = 'badge-primary';
-        else if (['closed-won', 'converted', 'paid', 'verified', 'replied', 'success'].includes(s)) cls = 'badge-success';
-        else if (['closed-lost', 'dead', 'bounced', 'error', 'failed', 'cancelled', 'overdue'].includes(s)) cls = 'badge-destructive';
+        if (['new', 'pending', 'processing'].includes(s)) cls = 'badge-info';
+        else if (['urgent', 'enriched', 'emailed', 'proposal sent', 'sent', 'in-progress'].includes(s)) cls = 'badge-warning';
+        else if (['qualified', 'appointment scheduled', 'replied', 'interested', 'scheduled'].includes(s)) cls = 'badge-primary';
+        else if (['customer', 'converted', 'closed-won', 'paid', 'success'].includes(s)) cls = 'badge-success';
+        else if (['no appointment', 'indifferent', 'unresponsive', 'unable to process', 'unsubscribe', 'inactive', 'error', 'failed', 'bounced', 'dead', 'closed-lost', 'cancelled', 'overdue'].includes(s)) cls = 'badge-destructive';
         return `<span class="badge ${cls}">${status}</span>`;
     }
 

@@ -144,7 +144,7 @@ Router.register('command-center', async (container) => {
         const totalCost = logs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
         const successCalls = calls.filter(c => c.call_successful === 'true' || c.call_successful === true).length;
         const scheduled = contacts.filter(c =>
-            c.status === 'Scheduled Meeting' || c.status === 'Appointment Scheduled'
+            c.status === 'Appointment Scheduled'
         ).length;
 
         KPI.render(kpiContainer, [
@@ -256,15 +256,15 @@ Router.register('command-center', async (container) => {
             items.push({ color: 'yellow', icon: '👤', text: `${newContacts.length} new contact(s) awaiting follow-up`, sub: 'View in Pipeline' });
         }
 
-        // Contacts that were contacted but haven't scheduled
-        const contacted = contacts.filter(c => c.status === 'Contacted');
-        if (contacted.length > 0) {
-            items.push({ color: 'blue', icon: '📞', text: `${contacted.length} contacted — awaiting response`, sub: 'Follow up on leads' });
+        // Contacts that were called but no appointment was made
+        const noAppointment = contacts.filter(c => c.status === 'No Appointment');
+        if (noAppointment.length > 0) {
+            items.push({ color: 'orange', icon: '📞', text: `${noAppointment.length} called — no appointment`, sub: 'Follow up on these contacts' });
         }
 
         // Upcoming appointments
         const scheduled = contacts.filter(c =>
-            c.status === 'Scheduled Meeting' || c.status === 'Appointment Scheduled'
+            c.status === 'Appointment Scheduled'
         );
         if (scheduled.length > 0) {
             items.push({ color: 'blue', icon: '📅', text: `${scheduled.length} scheduled meeting(s)`, sub: 'Review appointments below' });
@@ -306,7 +306,7 @@ Router.register('command-center', async (container) => {
     }
 
     // ─── Upcoming Appointments ───────────────────────────────
-    // Cross-references Contacts (status = Appointment Scheduled / Scheduled Meeting)
+    // Cross-references Contacts (status = Appointment Scheduled)
     // with Call Log entries that have appointment details (calendar_appointment_date_time)
 
     function renderAppointments(contacts, calls) {
@@ -315,7 +315,7 @@ Router.register('command-center', async (container) => {
 
         // Get contacts with appointment status
         const scheduledContacts = contacts.filter(c =>
-            c.status === 'Scheduled Meeting' || c.status === 'Appointment Scheduled'
+            c.status === 'Appointment Scheduled'
         );
 
         // Build a lookup map: contact_id → most recent call with appointment info
