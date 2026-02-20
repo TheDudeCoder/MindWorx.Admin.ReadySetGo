@@ -632,6 +632,28 @@
     border-bottom: none !important;
 }
 
+/* --- Command Center Grid Layout --- */
+
+.cc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.cc-span-2 {
+    grid-column: span 2;
+}
+
+@media (max-width: 1024px) {
+    .cc-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cc-span-2 {
+        grid-column: span 1;
+    }
+}
+
 /* --- Mobile Overlay --- */
 
 .sidebar-overlay {

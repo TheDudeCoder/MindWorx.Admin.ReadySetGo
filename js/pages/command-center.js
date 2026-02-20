@@ -16,19 +16,60 @@ Router.register('command-center', async (container) => {
 
         <div id="cc-kpi"></div>
 
-        <!-- Row 1: Charts + Action Items -->
-        <div class="analytics-grid">
-            <div class="card span-2">
+        <!-- Grid Layout -->
+        <div class="cc-grid">
+
+            <!-- Row 1: Contact Pipeline (2/3) + Call Volume (1/3) -->
+            <div class="card cc-span-2">
                 <div class="card-header flex justify-between items-center">
-                    <h3>Pipeline Funnel</h3>
+                    <h3>Contact Pipeline</h3>
+                    <span class="text-sm text-muted">by status</span>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container" style="height:280px;">
-                        <canvas id="cc-funnel-chart"></canvas>
+                    <div class="chart-container" style="height:260px;">
+                        <canvas id="cc-contact-funnel-chart"></canvas>
                     </div>
                 </div>
             </div>
 
+            <div class="card">
+                <div class="card-header flex justify-between items-center">
+                    <h3>Call Volume</h3>
+                    <span class="text-sm text-muted">Trend over period</span>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height:260px;">
+                        <canvas id="cc-calls-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Lead Pipeline (2/3) + Action Items (1/3) -->
+            <div class="card cc-span-2">
+                <div class="card-header flex justify-between items-center">
+                    <h3>Lead Pipeline</h3>
+                    <span class="text-sm text-muted">by status</span>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height:260px;">
+                        <canvas id="cc-lead-funnel-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header flex justify-between items-center">
+                    <h3>📅 Upcoming Appointments</h3>
+                    <span class="badge badge-info" id="cc-appt-count">0</span>
+                </div>
+                <div class="card-body" id="cc-appointments" style="max-height:260px;overflow-y:auto;">
+                    <div class="flex justify-center items-center" style="padding:2rem;">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Bottom cards (equal thirds) -->
             <div class="card">
                 <div class="card-header">
                     <h3>⚡ Action Items</h3>
@@ -40,50 +81,12 @@ Router.register('command-center', async (container) => {
                 </div>
             </div>
 
-            <div class="card span-2">
-                <div class="card-header flex justify-between items-center">
-                    <h3>Call Volume</h3>
-                    <span class="text-sm text-muted">Trend over period</span>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container" style="height:250px;">
-                        <canvas id="cc-calls-chart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3>System Status</h3>
-                </div>
-                <div class="card-body" id="cc-system-status">
-                    <div class="flex justify-center items-center" style="padding:2rem;">
-                        <div class="spinner"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Row 2: Appointments + Activity Feed + Alerts -->
-        <div class="analytics-grid" style="margin-top:1.5rem;">
-            <div class="card">
-                <div class="card-header flex justify-between items-center">
-                    <h3>📅 Upcoming Appointments</h3>
-                    <span class="badge badge-info" id="cc-appt-count">0</span>
-                </div>
-                <div class="card-body" id="cc-appointments" style="max-height:360px;overflow-y:auto;">
-                    <div class="flex justify-center items-center" style="padding:2rem;">
-                        <div class="spinner"></div>
-                    </div>
-                </div>
-            </div>
-
             <div class="card">
                 <div class="card-header flex justify-between items-center">
                     <h3>📋 Activity Feed</h3>
                     <span class="text-xs text-muted">Most recent</span>
                 </div>
-                <div class="card-body" id="cc-activity-feed" style="max-height:360px;overflow-y:auto;">
+                <div class="card-body" id="cc-activity-feed" style="max-height:280px;overflow-y:auto;">
                     <div class="flex justify-center items-center" style="padding:2rem;">
                         <div class="spinner"></div>
                     </div>
@@ -95,12 +98,13 @@ Router.register('command-center', async (container) => {
                     <h3>🔔 Alerts</h3>
                     <span class="badge badge-warning" id="cc-alert-count" style="display:none;">0</span>
                 </div>
-                <div class="card-body" id="cc-alerts" style="max-height:360px;overflow-y:auto;">
+                <div class="card-body" id="cc-alerts" style="max-height:280px;overflow-y:auto;">
                     <div class="flex justify-center items-center" style="padding:2rem;">
                         <div class="spinner"></div>
                     </div>
                 </div>
             </div>
+
         </div>
     `;
 
@@ -110,26 +114,28 @@ Router.register('command-center', async (container) => {
     async function loadData(range) {
         try {
             // Load data from all CRUD endpoints in parallel — server-side date filtering
-            const [contacts, callLogs, logs, expenses] = await Promise.all([
+            const [contacts, callLogs, logs, expenses, leads] = await Promise.all([
                 API.Contacts.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
                 API.CallLog.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
                 API.Logs.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] })),
-                API.Expenses.lookup({}).catch(() => ({ data: [] }))
+                API.Expenses.lookup({}).catch(() => ({ data: [] })),
+                API.Leads.lookup({ start_date: range.start, end_date: range.end }).catch(() => ({ data: [] }))
             ]);
 
             const contactList = contacts.data || contacts.results || [];
             const callList = callLogs.data || callLogs.results || [];
             const logList = logs.data || logs.results || [];
             const expenseList = expenses.data || expenses.results || [];
+            const leadList = leads.data || leads.results || [];
 
-            renderKPIs(contactList, callList, logList);
-            renderFunnelChart(contactList);
+            renderKPIs(contactList, callList, logList, leadList);
+            renderContactFunnelChart(contactList);
+            renderLeadFunnelChart(leadList);
             renderCallsChart(callList);
-            renderActionItems(contactList, callList, logList);
-            renderSystemStatus(logList);
+            renderActionItems(contactList, callList, logList, leadList);
             renderAppointments(contactList, callList);
             renderActivityFeed(logList);
-            renderAlerts(logList, expenseList, callList);
+            renderAlerts(logList, expenseList, callList, leadList);
         } catch (err) {
             console.error('Command Center load error:', err);
         }
@@ -137,34 +143,39 @@ Router.register('command-center', async (container) => {
 
     // ─── KPI Cards ───────────────────────────────────────────
 
-    function renderKPIs(contacts, calls, logs) {
+    function renderKPIs(contacts, calls, logs, leads) {
         const kpiContainer = document.getElementById('cc-kpi');
         kpiContainer.innerHTML = '';
 
+        const totalOps = logs.length;
+        const errors = logs.filter(l => l.status === 'error').length;
+        const rate = totalOps > 0 ? ((totalOps - errors) / totalOps * 100).toFixed(1) : 100;
+        const statusLabel = errors === 0 ? 'All Clear' : (errors / totalOps > 0.1 ? 'Needs Attention' : 'Minor Issues');
+
         const totalCost = logs.reduce((sum, l) => sum + (parseFloat(l.cost) || 0), 0);
         const successCalls = calls.filter(c => c.call_successful === 'true' || c.call_successful === true).length;
-        const scheduled = contacts.filter(c =>
-            c.status === 'Appointment Scheduled'
-        ).length;
+
+        const emailStatuses = ['emailed', 'replied', 'interested', 'indifferent'];
+        const emailedLeads = leads.filter(l => emailStatuses.includes((l.status || '').toLowerCase())).length;
 
         KPI.render(kpiContainer, [
             {
-                label: 'Total Contacts',
-                value: Utils.formatNumber(contacts.length),
-                trend: 0,
-                trendLabel: 'in period'
+                label: 'System Status',
+                value: `${rate}%`,
+                trend: errors === 0 ? 1 : (errors / totalOps > 0.1 ? -1 : 0),
+                trendLabel: `${statusLabel} · ${totalOps} ops · ${errors} error${errors !== 1 ? 's' : ''}`
             },
             {
-                label: 'Calls Made',
-                value: Utils.formatNumber(calls.length),
+                label: 'Contacts & Leads',
+                value: Utils.formatNumber(contacts.length + leads.length),
                 trend: 0,
-                trendLabel: `${successCalls} successful`
+                trendLabel: `${contacts.length} contacts · ${leads.length} leads`
             },
             {
-                label: 'Appointments',
-                value: Utils.formatNumber(scheduled),
+                label: 'Outreach',
+                value: Utils.formatNumber(calls.length + emailedLeads),
                 trend: 0,
-                trendLabel: 'scheduled'
+                trendLabel: `${calls.length} calls · ${emailedLeads} emails`
             },
             {
                 label: 'AI Spend',
@@ -175,10 +186,10 @@ Router.register('command-center', async (container) => {
         ]);
     }
 
-    // ─── Pipeline Funnel Chart ───────────────────────────────
+    // ─── Contact Pipeline Funnel Chart ───────────────────────
 
-    function renderFunnelChart(contacts) {
-        Charts.destroy('cc-funnel-chart');
+    function renderContactFunnelChart(contacts) {
+        Charts.destroy('cc-contact-funnel-chart');
         const statusCounts = {};
         contacts.forEach(c => {
             const s = c.status || 'Unknown';
@@ -189,10 +200,41 @@ Router.register('command-center', async (container) => {
         const data = Object.values(statusCounts);
         const colors = Charts.getThemeColors();
 
-        Charts.create('cc-funnel-chart', 'bar', {
+        Charts.create('cc-contact-funnel-chart', 'bar', {
             labels,
             datasets: [{
                 label: 'Contacts by Status',
+                data,
+                backgroundColor: colors.bgColors.slice(0, labels.length),
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        }, {
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        });
+    }
+
+    // ─── Lead Pipeline Funnel Chart ──────────────────────────
+
+    function renderLeadFunnelChart(leads) {
+        Charts.destroy('cc-lead-funnel-chart');
+        const statusCounts = {};
+        leads.forEach(l => {
+            const s = l.status || 'Unknown';
+            statusCounts[s] = (statusCounts[s] || 0) + 1;
+        });
+
+        const labels = Object.keys(statusCounts);
+        const data = Object.values(statusCounts);
+        const colors = Charts.getThemeColors();
+
+        Charts.create('cc-lead-funnel-chart', 'bar', {
+            labels,
+            datasets: [{
+                label: 'Leads by Status',
                 data,
                 backgroundColor: colors.bgColors.slice(0, labels.length),
                 borderRadius: 6,
@@ -240,7 +282,7 @@ Router.register('command-center', async (container) => {
 
     // ─── Action Items ────────────────────────────────────────
 
-    function renderActionItems(contacts, calls, logs) {
+    function renderActionItems(contacts, calls, logs, leads) {
         const actionsEl = document.getElementById('cc-actions');
         const items = [];
 
@@ -254,6 +296,12 @@ Router.register('command-center', async (container) => {
         const newContacts = contacts.filter(c => c.status === 'New');
         if (newContacts.length > 0) {
             items.push({ color: 'yellow', icon: '👤', text: `${newContacts.length} new contact(s) awaiting follow-up`, sub: 'View in Pipeline' });
+        }
+
+        // New leads pending follow-up
+        const newLeads = leads.filter(l => l.status === 'New');
+        if (newLeads.length > 0) {
+            items.push({ color: 'yellow', icon: '🎯', text: `${newLeads.length} new lead(s) awaiting follow-up`, sub: 'View in Pipeline' });
         }
 
         // Contacts that were called but no appointment was made
@@ -283,26 +331,6 @@ Router.register('command-center', async (container) => {
                 </div>
             </div>
         `).join('');
-    }
-
-    // ─── System Status ───────────────────────────────────────
-
-    function renderSystemStatus(logs) {
-        const statusEl = document.getElementById('cc-system-status');
-        const total = logs.length;
-        const errors = logs.filter(l => l.status === 'error').length;
-        const rate = total > 0 ? ((total - errors) / total * 100).toFixed(1) : 100;
-
-        const statusClass = errors === 0 ? 'text-success' : (errors / total > 0.1 ? 'text-destructive' : 'text-warning');
-        const statusLabel = errors === 0 ? 'All Clear' : (errors / total > 0.1 ? 'Needs Attention' : 'Minor Issues');
-
-        statusEl.innerHTML = `
-            <div style="text-align:center;padding:1rem 0;">
-                <div style="font-size:2.5rem;font-weight:800;margin-bottom:0.25rem;" class="${statusClass}">${rate}%</div>
-                <div class="text-sm font-medium ${statusClass}">${statusLabel}</div>
-                <div class="text-xs text-muted" style="margin-top:0.5rem;">${total} ops · ${errors} error${errors !== 1 ? 's' : ''}</div>
-            </div>
-        `;
     }
 
     // ─── Upcoming Appointments ───────────────────────────────
@@ -475,7 +503,7 @@ Router.register('command-center', async (container) => {
     // ─── Alerts ──────────────────────────────────────────────
     // Proactive warnings: expiring subs, error spikes, cost anomalies
 
-    function renderAlerts(logs, expenses, calls) {
+    function renderAlerts(logs, expenses, calls, leads) {
         const alertsEl = document.getElementById('cc-alerts');
         const countBadge = document.getElementById('cc-alert-count');
         const alerts = [];
@@ -558,6 +586,18 @@ Router.register('command-center', async (container) => {
                 title: `${failedCalls.length} failed call(s)`,
                 detail: 'Check Call Activity for details',
                 link: '#call-activity'
+            });
+        }
+
+        // 5. New leads that need attention
+        const newLeads = leads.filter(l => l.status === 'New');
+        if (newLeads.length > 5) {
+            alerts.push({
+                severity: 'info',
+                icon: '🎯',
+                title: `${newLeads.length} new leads in queue`,
+                detail: 'Review leads in Pipeline',
+                link: '#pipeline'
             });
         }
 
