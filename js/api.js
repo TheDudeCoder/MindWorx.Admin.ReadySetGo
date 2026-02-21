@@ -158,7 +158,13 @@ const API = (() => {
         lookup: () => crud('expenseunit-lookup', { operation: 'get' })
     };
 
-    return { crud, lookup, create, update, remove, Contacts, CallLog, Logs, Leads, Sales, Expenses, Settings, ContactStatus, LeadStatus, SalesStatus, ExpenseStatus, Executions, ExpenseType, ExpenseUnit };
+    // Campaigns (read-only lookup + AI campaign builder)
+    const Campaigns = {
+        lookup: (filters) => lookup('campaigns', filters),
+        generate: (idea, platform = 'linkedin') => crud('campaign-builder', { idea, platform })
+    };
+
+    return { crud, lookup, create, update, remove, Contacts, CallLog, Logs, Leads, Sales, Expenses, Settings, ContactStatus, LeadStatus, SalesStatus, ExpenseStatus, Executions, ExpenseType, ExpenseUnit, Campaigns };
 })();
 
 // --- Custom Error Class ---

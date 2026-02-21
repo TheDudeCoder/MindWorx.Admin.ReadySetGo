@@ -13,7 +13,9 @@ const ALLOWED = [
     'contactstatus-lookup', 'leadstatus-lookup',
     'salesstatus-lookup', 'expensestatus-lookup',
     'expensetype-lookup', 'expenseunit-lookup',
-    'executions-lookup'
+    'executions-lookup',
+    'campaigns-lookup',
+    'campaign-builder'
 ];
 
 export default async function handler(req, res) {

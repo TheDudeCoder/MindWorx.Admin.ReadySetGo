@@ -48,6 +48,7 @@ const Router = (() => {
             'financials': 'Financials',
             'system-health': 'System Health',
             'subscriptions': 'Subscriptions',
+            'campaigns': 'Campaigns',
             'settings': 'Settings'
         };
         const titleEl = document.getElementById('page-title');
