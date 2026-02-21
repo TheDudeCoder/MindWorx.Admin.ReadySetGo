@@ -10,14 +10,13 @@ Router.register('campaigns', async (container) => {
                 <h1 class="page-title">Campaigns</h1>
                 <p class="page-subtitle">LinkedIn campaign management & AI builder</p>
             </div>
-            <button class="btn btn-primary btn-sm" id="btn-refresh-campaigns">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                </svg>
-                Refresh
-            </button>
+            <div style="display:flex; gap:0.75rem; align-items:center;">
+                <div id="campaigns-date-range"></div>
+                <select id="campaigns-platform-filter" class="input" style="width:auto; min-width:140px;">
+                    <option value="">All Platforms</option>
+                    <option value="linkedin" selected>LinkedIn</option>
+                </select>
+            </div>
         </div>
 
         <!-- Tab Navigation -->
@@ -57,8 +56,17 @@ Router.register('campaigns', async (container) => {
     // ---- State ----
     let campaignData = [];
     let settingsData = [];
+    let currentDateRange = null;
 
-    document.getElementById('btn-refresh-campaigns').addEventListener('click', loadAll);
+    // ---- Date Range + Platform Filter (in header, shared across tabs) ----
+    currentDateRange = DateRange.render('campaigns-date-range', (range) => {
+        currentDateRange = range;
+        loadCampaigns(range);
+    }, '90d');
+
+    document.getElementById('campaigns-platform-filter').addEventListener('change', () => {
+        loadCampaigns(currentDateRange);
+    });
 
     // ================================================================
     // TAB 1: Campaign Results
@@ -67,24 +75,11 @@ Router.register('campaigns', async (container) => {
     function initResultsTab() {
         const tab = document.getElementById('tab-results');
         tab.innerHTML = `
-            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
-                <div id="campaigns-date-range"></div>
-                <select id="campaigns-platform-filter" class="input" style="width:auto; min-width:140px;">
-                    <option value="">All Platforms</option>
-                    <option value="linkedin" selected>LinkedIn</option>
-                </select>
-            </div>
             <div id="campaigns-kpi"></div>
             <div id="campaigns-table" style="margin-top:1rem;"></div>
         `;
 
-        const dateRange = DateRange.render('campaigns-date-range', (range) => loadCampaigns(range), '90d');
-
-        document.getElementById('campaigns-platform-filter').addEventListener('change', () => {
-            loadCampaigns(dateRange);
-        });
-
-        loadCampaigns(dateRange);
+        loadCampaigns(currentDateRange);
     }
 
     async function loadCampaigns(range) {
